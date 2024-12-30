@@ -1,0 +1,1904 @@
+---
+title: "EVYTH"
+author: "DGIMO"
+date: "25/08/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = FALSE, warning = FALSE)
+gc()
+rm(list=ls())
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(stringr)
+library(tidyverse)
+library(knitr)
+library(lubridate)
+library(foreign)
+library(here)
+library(janitor)
+library(kableExtra)
+library(scales)
+library(ggrepel)
+library(treemapify)
+library("knitr")
+```
+
+```{r}
+setwd("C:/Users/rlatorre.ENTURPC0000114/Desktop/Santiago/R")
+```
+
+```{r}
+evyth_url <- "https://datos.yvera.gob.ar/dataset/b5819e9b-5edf-4aad-bd39-a81158a2b3f3/resource/645e5505-68ee-4cfa-90f9-fcc9a4a34a85/download/evyth_microdatos.csv"
+
+evyth <- "evyth_microdatos.csv"
+
+download.file(url = evyth_url, destfile = evyth, method = "curl")
+
+evyth <- read.csv("evyth_microdatos.csv")
+
+```
+
+Cantidad de visitantes en la Ciudad 2018 - 2024 completos
+
+```{r}
+visitantes18_24 <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>%
+  filter(aglomerado_origen != 32) %>%
+  group_by(anio, tipo_visitante) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(tipo_visitante = stringr::str_replace(tipo_visitante, "1", "Turista"),
+         tipo_visitante = stringr::str_replace(tipo_visitante, "2", "Excursionista"))
+
+
+tabla_visitantes <- visitantes18_24 %>% 
+  mutate(anio = as.character(anio),
+         tipo_visitante = stringr::str_to_sentence(tipo_visitante)) %>%
+  kable(col.names = c("Año", "Tipo de visitante", "Total"),
+        format.args = list(decimal.mark = ",", big.mark = ".", digits = 1, scientific = FALSE))
+
+
+tabla_visitantes %>% 
+  collapse_rows(columns = 1, valign = "top")  %>% 
+  kable_styling() 
+  
+```
+
+Cantidad de visitantes en la Ciudad 2024
+
+```{r}
+visitantes24 <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio == 2024) %>%
+  filter(aglomerado_origen != 32) %>%
+  group_by(anio, tipo_visitante) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(tipo_visitante = stringr::str_replace(tipo_visitante, "1", "Turista"),
+         tipo_visitante = stringr::str_replace(tipo_visitante, "2", "Excursionista")) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+  
+```
+
+Turistas que visitan la Ciudad, por region de origen 2024
+
+```{r}
+regiones24 <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio == 2024) %>%
+  filter(tipo_visitante == 1)%>%
+  group_by(anio, region_origen) %>% 
+  mutate(region_origen = as_factor(region_origen)) %>%
+  mutate(region_origen = fct_recode(region_origen,
+                                    "Ciudad de Buenos Aires" = "1",
+                                    "Partidos del GBA" = "2",
+                                    "Provincia de Buenos Aires" = "3",
+                                    "Centro" = "4",
+                                    "Litoral" = "5",
+                                    "Norte" = "6",
+                                    "Cuyo" = "7",
+                                    "Patagonia" = "8")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         region_origen = stringr::str_to_sentence(region_origen)) %>%
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+```
+
+#turistas a CABA 2023/2024 1 trim
+
+```{r}
+aglomerados23_24 <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio >= 2023 & anio <= 2024) %>%
+  filter(trimestre == 1) %>% 
+  filter(tipo_visitante == 1)%>%
+  group_by(anio, aglomerado_origen) %>% 
+  mutate(aglomerado_origen = as_factor(aglomerado_origen)) %>% 
+  mutate(aglomerado_origen = fct_recode(aglomerado_origen,
+                                        "Gran La Plata" = "2",
+                                        "Bahía Blanca Cerri"= "3",
+                                        "Gran Rosario" = "4",
+                                        "Gran Santa Fe"= "5",
+                                        "Gran Parana"="6",
+                                        "Posadas"= "7",
+                                        "Gran Resistencia" ="8",
+                                        "Comodoro Rivadavia Rada Tilly" ="9",
+                                        "Gran Mendoza" ="10",
+                                        "Corrientes"= "12",
+                                        "Gran Córdoba" ="13",
+                                        "Concordia"= "14",
+                                        "Formosa"= "15",
+                                        "Neuquén Plottier" ="17",
+                                        "Santiago del Estero La Banda" ="18",
+                                        "Jujuy Palpalá" ="19",
+                                        "Río Gallegos"= "20",
+                                        "Gran Catamarca" ="22",
+                                        "Salta"="23",
+                                        "La Rioja" ="25",
+                                        "San Luis El Chorrillo" ="26",
+                                        "Gran San Juan" ="27",
+                                        "Gran Tucumán Tafí Viejo" ="29",
+                                        "Santa Rosa Toay"="30",
+                                        "Ushuaia Río Grande" ="31",
+                                        "Ciudad de Buenos Aires"= "32",
+                                        "Partidos del GBA" ="33",
+                                        "Mar del Plata Batán"= "34",
+                                        "Río Cuarto"= "36",
+                                        "San Nicolás Villa Constitución" ="38",
+                                        "Rawson Trelew" ="91",
+                                        "Viedma Carmen de Patagones" ="93")) %>%
+  mutate(region_origen = as_factor(region_origen)) %>%
+  mutate(region_origen = fct_recode(region_origen,
+                                    "Ciudad de Buenos Aires" = "1",
+                                    "Partidos del GBA" = "2",
+                                    "Provincia de Buenos Aires" = "3",
+                                    "Centro" = "4",
+                                    "Litoral" = "5",
+                                    "Norte" = "6",
+                                    "Cuyo" = "7",
+                                    "Patagonia" = "8")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         aglomerado_origen = stringr::str_to_sentence(aglomerado_origen)) #%>% 
+ # arrange(desc(casos_ponderados))
+
+
+ggplot(aglomerados23_24) +
+  geom_bar(aes(x = reorder(aglomerado_origen, casos_ponderados), weight = casos_ponderados))+
+  theme(axis.text = element_text(size = 8))+
+  labs(x = "Aglomerados",
+         y = "Turistas",
+       fuente = "EVYTH")+
+  coord_flip()+
+  facet_wrap(~anio)
+```
+
+#turistas a caba 1trim 23
+
+```{r}
+aglomerados24 <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio == 2024) %>%
+  filter(trimestre == 1) %>% 
+  filter(tipo_visitante == 1)%>%
+  group_by(anio, aglomerado_origen) %>% 
+  mutate(aglomerado_origen = as_factor(aglomerado_origen)) %>% 
+  mutate(aglomerado_origen = fct_recode(aglomerado_origen,
+                                        "Gran La Plata" = "2",
+                                        "Bahía Blanca Cerri"= "3",
+                                        "Gran Rosario" = "4",
+                                        "Gran Santa Fe"= "5",
+                                        "Gran Parana"="6",
+                                        "Posadas"= "7",
+                                        "Gran Resistencia" ="8",
+                                        "Comodoro Rivadavia Rada Tilly" ="9",
+                                        "Gran Mendoza" ="10",
+                                        "Corrientes"= "12",
+                                        "Gran Córdoba" ="13",
+                                        "Concordia"= "14",
+                                        "Formosa"= "15",
+                                        "Neuquén Plottier" ="17",
+                                        "Santiago del Estero La Banda" ="18",
+                                        "Jujuy Palpalá" ="19",
+                                        "Río Gallegos"= "20",
+                                        "Gran Catamarca" ="22",
+                                        "Salta"="23",
+                                        "La Rioja" ="25",
+                                        "San Luis El Chorrillo" ="26",
+                                        "Gran San Juan" ="27",
+                                        "Gran Tucumán Tafí Viejo" ="29",
+                                        "Santa Rosa Toay"="30",
+                                        "Ushuaia Río Grande" ="31",
+                                        "Ciudad de Buenos Aires"= "32",
+                                        "Partidos del GBA" ="33",
+                                        "Mar del Plata Batán"= "34",
+                                        "Río Cuarto"= "36",
+                                        "San Nicolás Villa Constitución" ="38",
+                                        "Rawson Trelew" ="91",
+                                        "Viedma Carmen de Patagones" ="93")) %>%
+  mutate(region_origen = as_factor(region_origen)) %>%
+  mutate(region_origen = fct_recode(region_origen,
+                                    "Ciudad de Buenos Aires" = "1",
+                                    "Partidos del GBA" = "2",
+                                    "Provincia de Buenos Aires" = "3",
+                                    "Centro" = "4",
+                                    "Litoral" = "5",
+                                    "Norte" = "6",
+                                    "Cuyo" = "7",
+                                    "Patagonia" = "8")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         aglomerado_origen = stringr::str_to_sentence(aglomerado_origen)) #%>% 
+ # arrange(desc(casos_ponderados))
+
+
+
+ggplot(aglomerados24) +
+  geom_bar(aes(x = reorder(aglomerado_origen, casos_ponderados), weight = casos_ponderados))+
+  theme(axis.text = element_text(size = 8))+
+  labs(x = "Aglomerados",
+         y = "Turistas",
+       fuente = "EVYTH")+
+  coord_flip()+
+  facet_wrap(~anio)
+```
+
+Turistas que visitan la Ciudad, por aglomerado de origen 2018-2019 años completos
+
+```{r}
+aglomerados18_19c <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio >= 2018 & anio <= 2019) %>%
+  filter(tipo_visitante == 1)%>%
+  group_by(anio, aglomerado_origen) %>% 
+  mutate(aglomerado_origen = as_factor(aglomerado_origen)) %>% 
+  mutate(aglomerado_origen = fct_recode(aglomerado_origen,
+                                        "Gran La Plata" = "2",
+                                        "Bahía Blanca Cerri"= "3",
+                                        "Gran Rosario" = "4",
+                                        "Gran Santa Fe"= "5",
+                                        "Gran Parana"="6",
+                                        "Posadas"= "7",
+                                        "Gran Resistencia" ="8",
+                                        "Comodoro Rivadavia Rada Tilly" ="9",
+                                        "Gran Mendoza" ="10",
+                                        "Corrientes"= "12",
+                                        "Gran Córdoba" ="13",
+                                        "Concordia"= "14",
+                                        "Formosa"= "15",
+                                        "Neuquén Plottier" ="17",
+                                        "Santiago del Estero La Banda" ="18",
+                                        "Jujuy Palpalá" ="19",
+                                        "Río Gallegos"= "20",
+                                        "Gran Catamarca" ="22",
+                                        "Salta"="23",
+                                        "La Rioja" ="25",
+                                        "San Luis El Chorrillo" ="26",
+                                        "Gran San Juan" ="27",
+                                        "Gran Tucumán Tafí Viejo" ="29",
+                                        "Santa Rosa Toay"="30",
+                                        "Ushuaia Río Grande" ="31",
+                                        "Ciudad de Buenos Aires"= "32",
+                                        "Partidos del GBA" ="33",
+                                        "Mar del Plata Batán"= "34",
+                                        "Río Cuarto"= "36",
+                                        "San Nicolás Villa Constitución" ="38",
+                                        "Rawson Trelew" ="91",
+                                        "Viedma Carmen de Patagones" ="93")) %>%
+  mutate(region_origen = as_factor(region_origen)) %>%
+  mutate(region_origen = fct_recode(region_origen,
+                                    "Ciudad de Buenos Aires" = "1",
+                                    "Partidos del GBA" = "2",
+                                    "Provincia de Buenos Aires" = "3",
+                                    "Centro" = "4",
+                                    "Litoral" = "5",
+                                    "Norte" = "6",
+                                    "Cuyo" = "7",
+                                    "Patagonia" = "8")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         aglomerado_origen = stringr::str_to_sentence(aglomerado_origen)) #%>% 
+ # arrange(desc(casos_ponderados))
+
+
+ggplot(aglomerados18_19c) +
+  geom_bar(aes(x = reorder(aglomerado_origen, casos_ponderados), weight = casos_ponderados))+
+  theme(axis.text = element_text(size = 8))+
+  labs(title = "Turistas según aglomerado de origen - Años completos",
+         x = "Aglomerados",
+         y = "Turistas",
+       fuente = "EVYTH")+
+  coord_flip()+
+  facet_wrap(~anio)
+```
+
+#Turistas que visitan la Ciudad, por aglomerado de origen 2019-2023 años completos
+
+```{r}
+aglomerados19_23c <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio %in% c(2019, 2023)) %>%
+  filter(tipo_visitante == 1)%>%
+  group_by(anio, aglomerado_origen) %>% 
+  mutate(aglomerado_origen = as_factor(aglomerado_origen)) %>% 
+  mutate(aglomerado_origen = fct_recode(aglomerado_origen,
+                                        "Gran La Plata" = "2",
+                                        "Bahía Blanca Cerri"= "3",
+                                        "Gran Rosario" = "4",
+                                        "Gran Santa Fe"= "5",
+                                        "Gran Parana"="6",
+                                        "Posadas"= "7",
+                                        "Gran Resistencia" ="8",
+                                        "Comodoro Rivadavia Rada Tilly" ="9",
+                                        "Gran Mendoza" ="10",
+                                        "Corrientes"= "12",
+                                        "Gran Córdoba" ="13",
+                                        "Concordia"= "14",
+                                        "Formosa"= "15",
+                                        "Neuquén Plottier" ="17",
+                                        "Santiago del Estero La Banda" ="18",
+                                        "Jujuy Palpalá" ="19",
+                                        "Río Gallegos"= "20",
+                                        "Gran Catamarca" ="22",
+                                        "Salta"="23",
+                                        "La Rioja" ="25",
+                                        "San Luis El Chorrillo" ="26",
+                                        "Gran San Juan" ="27",
+                                        "Gran Tucumán Tafí Viejo" ="29",
+                                        "Santa Rosa Toay"="30",
+                                        "Ushuaia Río Grande" ="31",
+                                        "Ciudad de Buenos Aires"= "32",
+                                        "Partidos del GBA" ="33",
+                                        "Mar del Plata Batán"= "34",
+                                        "Río Cuarto"= "36",
+                                        "San Nicolás Villa Constitución" ="38",
+                                        "Rawson Trelew" ="91",
+                                        "Viedma Carmen de Patagones" ="93")) %>%
+  mutate(region_origen = as_factor(region_origen)) %>%
+  mutate(region_origen = fct_recode(region_origen,
+                                    "Ciudad de Buenos Aires" = "1",
+                                    "Partidos del GBA" = "2",
+                                    "Provincia de Buenos Aires" = "3",
+                                    "Centro" = "4",
+                                    "Litoral" = "5",
+                                    "Norte" = "6",
+                                    "Cuyo" = "7",
+                                    "Patagonia" = "8")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         aglomerado_origen = stringr::str_to_sentence(aglomerado_origen)) #%>% 
+ # arrange(desc(casos_ponderados))
+
+
+ggplot(aglomerados19_23c) +
+  geom_bar(aes(x = reorder(aglomerado_origen, casos_ponderados), weight = casos_ponderados))+
+  theme(axis.text = element_text(size = 8))+
+  labs(x = "Aglomerados",
+         y = "Turistas",
+       fuente = "EVYTH")+
+  coord_flip()+
+  facet_wrap(~anio)
+```
+
+Análisis por regiones
+
+```{r}
+regiones <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(region_origen !=1) %>% 
+  filter(tipo_visitante == 1) %>%
+  filter(trimestre == 1) %>% 
+  filter(anio >= 2014) %>% 
+  group_by(anio, region_origen) %>% 
+  mutate(region_origen = as_factor(region_origen)) %>%
+  mutate(region_origen = fct_recode(region_origen,
+                                    "Ciudad de Buenos Aires" = "1",
+                                    "Partidos del GBA" = "2",
+                                    "Provincia de Buenos Aires" = "3",
+                                    "Centro" = "4",
+                                    "Litoral" = "5",
+                                    "Norte" = "6",
+                                    "Cuyo" = "7",
+                                    "Patagonia" = "8")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         region_origen = stringr::str_to_sentence(region_origen)) 
+
+regionpba <- regiones %>% 
+  filter(region_origen == "Provincia de buenos aires")
+
+regiongba <- regiones %>% 
+  filter(region_origen == "Partidos del gba")
+
+ggplot(regiones) +
+  geom_bar(aes(x = reorder(region_origen, casos_ponderados), weight = casos_ponderados))+
+  theme(axis.text = element_text(size = 8))+
+  labs(x = "Regiones",
+         y = "Turistas",
+       fuente = "EVYTH")+
+  coord_flip()+
+  facet_wrap(~anio)
+```
+
+```{r}
+edades24 <- evyth %>% 
+   filter(region_destino == 1) %>% 
+  filter(region_origen !=1) %>% 
+  filter(tipo_visitante == 1) %>%
+  filter(p006_agrup != 99) %>% 
+  filter(anio == 2024) %>% 
+  group_by(anio, p006_agrup) %>% 
+  mutate(p006_agrup = as_factor(p006_agrup)) %>%
+  mutate(p006_agrup = fct_recode(p006_agrup,
+                                    "Menos de 14 años" = "1",
+                                    "14 a 29 años" = "2",
+                                    "30 a 44 años" = "3",
+                                    "45 a 59 años" = "4",
+                                    "60 años o más" = "5")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         p006_agrup = stringr::str_to_sentence(p006_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+  
+```
+
+```{r}
+visitas_atrac24 <- evyth %>% 
+   filter(region_destino == 1) %>% 
+  filter(region_origen !=1) %>% 
+  filter(tipo_visitante == 1) %>%
+  filter(px17_1 != 9) %>% 
+  filter(anio == 2024) %>% 
+  group_by(anio, px17_1) %>% 
+  mutate(px17_1 = as_factor(px17_1)) %>%
+  mutate(px17_1 = fct_recode(px17_1,
+                                    "Si" = "1",
+                                    "No" = "2")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         px17_1 = stringr::str_to_sentence(px17_1)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+```
+
+```{r}
+visitas_deport24 <- evyth %>% 
+   filter(region_destino == 1) %>% 
+  filter(region_origen !=1) %>% 
+  filter(tipo_visitante == 1) %>%
+  filter(px17_2_7 != 9) %>% 
+  filter(anio == 2024) %>% 
+  group_by(anio, px17_2_7) %>% 
+  mutate(px17_2_7 = as_factor(px17_2_7)) %>%
+  mutate(px17_2_7 = fct_recode(px17_2_7,
+                                    "Si" = "1",
+                                    "No" = "2")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         px17_2_7 = stringr::str_to_sentence(px17_2_7)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+```
+
+```{r}
+paq_turist24 <- evyth %>% 
+   filter(region_destino == 1) %>% 
+  filter(region_origen !=1) %>% 
+  filter(tipo_visitante == 1) %>%
+  filter(px11 != 9) %>% 
+  filter(anio == 2024) %>% 
+  group_by(anio, px11) %>% 
+  mutate(px11 = as_factor(px11)) %>%
+  mutate(px11 = fct_recode(px11,
+                                    "Si" = "1",
+                                    "No" = "2")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>%
+  mutate(anio = as.character(anio),
+         px11 = stringr::str_to_sentence(px11)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+```
+
+Tipo de transporte utilizado por los turistas que visitaron la Ciudad.
+
+```{r}
+transporte2022 <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio ==2024) %>% 
+  #filter(trimestre == 1) %>% 
+  filter(px09 != 99) %>% 
+  filter(tipo_visitante == 1) %>% 
+  group_by(anio, px09) %>% 
+  mutate(px09 = as_factor(px09)) %>%
+  mutate(px09 = fct_recode(px09,
+                           "Automovil" = "1",
+                           "Omnibus" = "2",
+                           "Tren" = "3",
+                           "Avión" = "4",
+                           "Embarcación" = "5",
+                           "Taxi o remis" = "6",
+                           "Otro" = "8",
+                           "Ns/ns" = "99")) %>%
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px09 = stringr::str_to_sentence(px09)) %>% 
+  arrange(desc(casos_ponderados)) %>%
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+  ggplot(transporte2022,aes(x="",y=porcentaje, fill=px09))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+    scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Tipo de transporte de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Transporte")+
+     facet_wrap(~anio)
+  
+  
+   ggplot(transporte2022,aes(x="",y=porcentaje, fill= fct_inorder(px09)))+
+     geom_col(width = 10, color = 1) +
+     coord_polar(theta = "y") +
+     scale_fill_brewer(palette = "Pastel1") +
+     geom_label_repel(data = transporte2022,
+                      aes(y=porcentaje, label = paste0(round(porcentaje,1), "%")),
+                      size = 2.5, nudge_x = 1, show.legend = F)+
+     guides(fill = guide_legend(title = "Tipo transporte")) +
+        theme_void()+
+     facet_wrap(~anio)
+```
+
+```{r}
+### Tabla 1 - Cantidad de visitantes por tipo
+tabla_visitantes_1824 <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, tipo_visitante) %>% 
+  summarise(cantidad = sum(pondera)) %>% 
+  ungroup()
+
+options(scipen = 999)
+
+### Gráfico - Cantidad de visitantes por tipo de visitante
+tabla_visitantes_1824 %>% 
+  ggplot(aes(x = anio, y = cantidad, group = tipo_visitante, colour = tipo_visitante)) +
+  geom_line() +
+  geom_point(data = . %>% 
+               filter(anio == max(anio)),
+            mapping = aes(x = anio, y = cantidad),
+            color = "red") +
+  geom_hline(data = . %>% 
+               filter(anio == max(anio)),
+            mapping = aes(yintercept = cantidad), linetype = 5) +
+  scale_y_continuous(labels = scales::label_number(big.mark = "."),
+                     breaks = seq(0, 900000, 100000),
+                     limits = c(0, 900000)) +
+  scale_x_continuous(breaks = c(min(evyth$anio):max(evyth$anio))) +
+  facet_wrap(facets = "tipo_visitante", nrow = 2) +
+  theme_minimal() +
+    theme(
+    legend.position = "none"
+  ) +
+  labs(title = "",
+       subtitle = "visitantes a CABA",
+       x = "", y = "",
+       caption = "Encuesta de Viajes y Turismo de los Hogares")
+
+
+```
+
+```{r}
+### Tabla - Evolución de las categórías para Tipo de transporte
+tabla_transporte <- evyth %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(anio >= 2022) %>% 
+  group_by(anio, trimestre, px09) %>% 
+  summarise(cantidad = sum(pondera)) %>% 
+  ungroup() %>% 
+  group_by(anio, trimestre) %>% 
+  mutate(px09 = as_factor(px09)) %>%
+  mutate(px09 = fct_recode(px09,
+                           "Automovil" = "1",
+                           "Omnibus" = "2",
+                           "Tren" = "3",
+                           "Avión" = "4",
+                           "Embarcación" = "5",
+                           "Taxi o remis" = "6",
+                           "Otro" = "8",
+                           "Ns/nr" = "99")) %>%
+  mutate(porcentaje = round(cantidad / sum(cantidad) * 100, 1)) %>% 
+  filter(px09 != "Ns/nr")
+
+### Gráfico - Tipo de transporte
+ggplot(tabla_transporte, aes(x= anio, y= porcentaje))+
+  geom_path(color=4)+
+  geom_point(size =2, color=4)+
+  geom_text(aes(label=px09, x=anio +0.7, y=porcentaje))
+
+
+```
+
+Tipo de alojamiento de los turistas que visitan la Ciudad 2024
+
+```{r}
+alojamiento24 <- evyth %>%
+  filter(region_destino == 1) %>%
+  filter(aglomerado_origen != 32) %>%
+  filter(tipo_visitante == 1) %>%
+  filter(anio == 2024) %>% 
+  group_by(anio, px08_agrup) %>%
+  mutate(px08_agrup = stringr::str_replace(px08_agrup, "1", "Segunda vivienda del Hogar"),
+         px08_agrup = stringr::str_replace(px08_agrup, "2", "Vivienda de familiares y amigos"),
+         px08_agrup = stringr::str_replace(px08_agrup, "3", "Vivienda alquilada por temporada"),
+         px08_agrup = stringr::str_replace(px08_agrup, "4", "Camping"),
+         px08_agrup = stringr::str_replace(px08_agrup, "5", "Hotel h/ 3*"),
+         px08_agrup = stringr::str_replace(px08_agrup, "6", "Hotel 4 y 5*"),
+         px08_agrup = stringr::str_replace(px08_agrup, "7", "Resto")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px08_agrup = stringr::str_to_sentence(px08_agrup)) %>% 
+  arrange(desc(casos_ponderados)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(alojamiento24,aes(x="",y=porcentaje, fill=px08_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel2") +
+    theme_void()+
+    labs(title="Tipo de alojamiento de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Alojamiento")+
+   facet_wrap(~anio)
+
+ggplot(alojamiento24, aes(area= porcentaje, fill = px08_agrup, label = round(porcentaje,1),"%"))+
+  geom_treemap()+
+  scale_fill_brewer(palette = "Pastel2")+
+  geom_treemap_text(colour = "black",
+                    place ="centre",
+                    size = 10)+
+   facet_wrap(~anio)
+```
+
+Motivo de viaje de los turistas que visitan la Ciudad.
+
+```{r}
+motivo24 <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio == 2024) %>%
+  filter(aglomerado_origen != 32) %>%
+  filter(tipo_visitante == 1) %>% 
+  filter(px10_1 != 99) %>% 
+  group_by(anio, px10_1) %>% 
+  mutate(px10_1 = as_factor(px10_1)) %>%
+  mutate(px10_1 = fct_recode(px10_1,
+                             "Esparcimiento, ocio" = "1",
+                             "Visitas familiares y amigos" = "2",
+                             "Negocios" = "3",
+                             "Estudios" = "4",
+                             "Salud" = "5",
+                             "Religión" = "6",
+                             "Compras" = "7",
+                             "Otros" = "8",
+                             "Ns/ns" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px10_1 = stringr::str_to_sentence(px10_1)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(motivo24,aes(x="",y=porcentaje, fill=px10_1))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Motivo de viaje de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Motivo")+
+   facet_wrap(~anio)
+
+
+ ggplot(motivo24,aes(x="",y=porcentaje, fill= px10_1))+
+     geom_col(width = 10, color = 1) +
+   geom_text(aes(label = porcentaje),
+             position = position_stack(vjust = 0.5))+
+     coord_polar(theta = "y") +
+     scale_fill_brewer(palette = "Pastel1") +
+   scale_y_continuous(breaks = motivo24$porcentaje, labels = motivo24$px10_1) +
+     theme(axis.ticks = element_blank(),
+           axis.text = element_text(size = 15),
+           legend.position = "none",
+           panel.background = element_rect(fill = "white"))+
+     facet_wrap(~anio)
+        
+        
+ggplot(motivo24, aes(x=anio, y=porcentaje, fill = px10_1))+
+  geom_bar(stat = "identity", color = "black")+
+  scale_fill_brewer(palette ="Pastel1")+
+  guides(fill=guide_legend(title="Motivo"))
+```
+
+Tamaño de grupo de viaje, de los turistas que visitan la Ciudad.
+
+```{r}
+tamaño_grupo <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(anio == 2024) %>% 
+  #filter(trimestre==1) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, px06_agrup) %>% 
+  mutate(px06_agrup = as_factor(px06_agrup)) %>% 
+  mutate(px06_agrup = fct_recode(px06_agrup,
+                                 "1 o 2 personas" = "1",
+                                 "3 o 4 personas" = "2",
+                                 "5 o más personas" = "3")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px06_agrup = stringr::str_to_sentence(px06_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+ggplot(tamaño_grupo,aes(x="",y=porcentaje, fill=px06_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel2")+
+    theme_void()+
+    labs(title="Tamaño de grupo de viaje de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Tamaño")+
+   facet_wrap(~anio)
+```
+
+Estadía promedio de los turistas que visitan la Ciudad.
+
+```{r}
+estadia <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante==1) %>%
+  filter(anio ==2024) %>%
+  #filter(trimestre == 1) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, px07_agrup) %>% 
+  mutate(px07_agrup = as_factor(px07_agrup)) %>% 
+  mutate(px07_agrup = fct_recode(px07_agrup,
+                                 "1 a 3 noches" = "1",
+                                 "4 o 7 noches" = "2",
+                                 "8 a 14 noches" = "3",
+                                 "15 a 30 noches" = "4",
+                                 "mas de 30 noches" = "5")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px07_agrup = stringr::str_to_sentence(px07_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(estadia,aes(x="",y=porcentaje, fill=px07_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel2")+
+    theme_void()+
+    labs(title="Estadía promedio de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Estadía")+
+   facet_wrap(~anio)
+```
+
+Anticipación de viaje de los turistas.
+
+```{r}
+anticipacion24 <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(anio ==2024) %>%
+  filter(aglomerado_origen != 32) %>% 
+  filter(px13 != 99) %>% 
+  group_by(anio, px13) %>% 
+  mutate(px13 = as_factor(px13)) %>% 
+  mutate(px13 = fct_recode(px13,
+                           "El mismo día" = "1",
+                           "Entre un día y menos de una semana" = "2",
+                           "Entre una semana y un mes" = "3",
+                           "Más de un mes y hasta seis meses" = "4",
+                           "Más de seis meses" = "5",
+                           "Ns/nr" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px13 = stringr::str_to_sentence(px13)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(anticipacion24,aes(x="",y=porcentaje, fill=px13))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+    theme_void()+
+    labs(title="Anticipación de viaje de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Anticipación")+
+   facet_wrap(~anio)
+
+
+
+```
+
+ANALISIS PBA
+
+```{r}
+transportepba <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio >=2018) %>% 
+  filter(region_origen >=2 & region_origen <=3) %>% 
+  filter(trimestre == 1) %>% 
+  filter(px09 != 99) %>% 
+  filter(tipo_visitante == 1) %>% 
+  group_by(anio, px09) %>% 
+  mutate(px09 = as_factor(px09)) %>%
+  mutate(px09 = fct_recode(px09,
+                           "Automovil" = "1",
+                           "Omnibus" = "2",
+                           "Tren" = "3",
+                           "Avión" = "4",
+                           "Embarcación" = "5",
+                           "Taxi o remis" = "6",
+                           "Otro" = "8",
+                           "Ns/ns" = "99")) %>%
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px09 = stringr::str_to_sentence(px09)) %>% 
+  arrange(desc(casos_ponderados)) %>%
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+  ggplot(transportepba,aes(x="",y=porcentaje, fill=px09))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+    scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Tipo de transporte de los turistas de PBA",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Transporte")+
+     facet_wrap(~anio)
+  
+ggplot(transportepba, aes(x=anio, y=porcentaje, fill = px09))+
+  geom_bar(stat = "identity", color = "black")+
+  scale_fill_brewer(palette ="Pastel1")+
+  guides(fill=guide_legend(title="Transporte"))+
+  labs(title = "Tipo de transporte de los turistas de PBA",
+       subtitle = "Primeros trimestres",
+       caption = "Fuente: EVYTH")
+   
+```
+
+```{r}
+motivopba <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>%
+  filter(trimestre ==1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(region_origen >=2 &region_origen <=3) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(px10_1 != 99) %>% 
+  group_by(anio, px10_1) %>% 
+  mutate(px10_1 = as_factor(px10_1)) %>%
+  mutate(px10_1 = fct_recode(px10_1,
+                             "Esparcimiento, ocio" = "1",
+                             "Visitas familiares y amigos" = "2",
+                             "Negocios" = "3",
+                             "Estudios" = "4",
+                             "Salud" = "5",
+                             "Religión" = "6",
+                             "Compras" = "7",
+                             "Otros" = "8",
+                             "Ns/ns" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px10_1 = stringr::str_to_sentence(px10_1)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(motivopba,aes(x="",y=porcentaje, fill=px10_1))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Motivo de viaje de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Motivo")+
+   facet_wrap(~anio)
+
+
+ ggplot(motivopba,aes(x=anio,y=porcentaje, fill= px10_1))+
+     geom_col(width = 10, color = 1) +
+   geom_text(aes(label = paste0(round(porcentaje,1), "%")),
+             position = position_stack(vjust = 0.5))+
+     coord_polar(theta = "y") +
+     scale_fill_brewer(palette = "Pastel1") +
+   scale_y_continuous(breaks = motivopba$porcentaje, labels = motivopba$px10_1) +
+     theme(axis.ticks = element_blank(),
+           axis.text = element_text(size = 15),
+           legend.position = "none",
+           panel.background = element_rect(fill = "white"))+
+        theme_void()+
+     facet_wrap(~anio)
+        
+        
+ggplot(motivopba, aes(x=anio, y=porcentaje, fill = px10_1))+
+  geom_bar(stat = "identity", color = "black")+
+  scale_fill_brewer(palette ="Pastel1")+
+  guides(fill=guide_legend(title="Motivo"))+
+  labs(title = "Motivo de viaje de los turistas de PBA",
+       subtitle = "Primeros trimestres",
+       caption = "Fuente: EVYTH")
+```
+
+```{r}
+alojamientopba <- evyth %>%
+  filter(region_destino == 1) %>%
+  filter(aglomerado_origen != 32) %>%
+  filter(tipo_visitante == 1) %>%
+  filter(region_origen >=2 & region_origen<=3) %>% 
+  filter(anio >= 2018) %>% 
+  filter(trimestre == 1) %>% 
+  group_by(anio, px08_agrup) %>%
+  mutate(px08_agrup = stringr::str_replace(px08_agrup, "1", "Segunda vivienda del Hogar"),
+         px08_agrup = stringr::str_replace(px08_agrup, "2", "Vivienda de familiares y amigos"),
+         px08_agrup = stringr::str_replace(px08_agrup, "3", "Vivienda alquilada por temporada"),
+         px08_agrup = stringr::str_replace(px08_agrup, "4", "Camping"),
+         px08_agrup = stringr::str_replace(px08_agrup, "5", "Hotel h/ 3*"),
+         px08_agrup = stringr::str_replace(px08_agrup, "6", "Hotel 4 y 5*"),
+         px08_agrup = stringr::str_replace(px08_agrup, "7", "Resto")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px08_agrup = stringr::str_to_sentence(px08_agrup)) %>% 
+  arrange(desc(casos_ponderados)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(alojamientopba,aes(x="",y=porcentaje, fill=px08_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel2") +
+    theme_void()+
+    labs(title="Tipo de alojamiento de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Alojamiento")+
+   facet_wrap(~anio)
+
+ggplot(alojamientopba, aes(area= porcentaje, fill = px08_agrup, label = round(porcentaje,1),"%"))+
+  geom_treemap()+
+  scale_fill_brewer(palette = "Pastel2")+
+  geom_treemap_text(colour = "black",
+                    place ="centre",
+                    size = 10)+
+   facet_wrap(~anio)+
+  labs(title="Tipo de alojamiento de los turistas de PBA",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Alojamiento")
+```
+
+```{r}
+tamaño_grupopba <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(anio >= 2018) %>% 
+  filter(trimestre==1) %>% 
+  filter(region_origen>=2 & region_origen <=3) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, px06_agrup) %>% 
+  mutate(px06_agrup = as_factor(px06_agrup)) %>% 
+  mutate(px06_agrup = fct_recode(px06_agrup,
+                                 "1 o 2 personas" = "1",
+                                 "3 o 4 personas" = "2",
+                                 "5 o más personas" = "3")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px06_agrup = stringr::str_to_sentence(px06_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+ggplot(tamaño_grupopba,aes(x="",y=porcentaje, fill=px06_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel2")+
+    theme_void()+
+    labs(title="Tamaño de grupo de viaje de los turistas de PBA",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Tamaño")+
+   facet_wrap(~anio)
+```
+
+```{r}
+anticipacionpba <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(anio >=2018) %>%
+  filter(trimestre==1) %>% 
+  filter(region_origen >=2 & region_origen<=3) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  filter(px13 != 99) %>% 
+  group_by(anio, px13) %>% 
+  mutate(px13 = as_factor(px13)) %>% 
+  mutate(px13 = fct_recode(px13,
+                           "El mismo día" = "1",
+                           "Entre un día y menos de una semana" = "2",
+                           "Entre una semana y un mes" = "3",
+                           "Más de un mes y hasta seis meses" = "4",
+                           "Más de seis meses" = "5",
+                           "Ns/nr" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px13 = stringr::str_to_sentence(px13)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(anticipacionpba,aes(x="",y=porcentaje, fill=px13))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel1")+
+    theme_void()+
+    labs(title="Anticipación de viaje de los turistas de PBA",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Anticipación")+
+   facet_wrap(~anio)
+
+```
+
+```{r}
+estadiapba <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante==1) %>%
+  filter(anio >=2019) %>%
+  filter(region_origen >=2 & region_origen<=3) %>%
+  filter(trimestre == 1) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, px07_agrup) %>% 
+  mutate(px07_agrup = as_factor(px07_agrup)) %>% 
+  mutate(px07_agrup = fct_recode(px07_agrup,
+                                 "1 a 3 noches" = "1",
+                                 "4 o 7 noches" = "2",
+                                 "8 a 14 noches" = "3",
+                                 "15 a 30 noches" = "4",
+                                 "mas de 30 noches" = "5")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px07_agrup = stringr::str_to_sentence(px07_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(estadiapba,aes(x="",y=porcentaje, fill=px07_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel2")+
+    theme_void()+
+    labs(title="Estadía promedio de los turistas de PBA",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Estadía")+
+   facet_wrap(~anio)
+```
+
+Análisis Gran Santa Fe
+
+```{r}
+visitantesstafe <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>%
+  filter(aglomerado_origen == 5) %>%
+  filter(aglomerado_origen != 32) %>%
+  group_by(anio, tipo_visitante) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(tipo_visitante = stringr::str_replace(tipo_visitante, "1", "Turista"),
+         tipo_visitante = stringr::str_replace(tipo_visitante, "2", "Excursionista"))
+
+
+tabla_visitantesstafe <- visitantesstafe %>% 
+  mutate(anio = as.character(anio),
+         tipo_visitante = stringr::str_to_sentence(tipo_visitante)) %>%
+  kable(col.names = c("Año", "Tipo de visitante", "Total"),
+        format.args = list(decimal.mark = ",", big.mark = ".", digits = 1, scientific = FALSE))
+
+
+tabla_visitantesstafe %>% 
+  collapse_rows(columns = 1, valign = "top")  %>% 
+  kable_styling() 
+```
+
+```{r}
+alojamientostafe <- evyth %>%
+  filter(region_destino == 1) %>%
+  filter(aglomerado_origen != 32) %>%
+  filter(aglomerado_origen == 5) %>% 
+  filter(tipo_visitante == 1) %>%
+  filter(anio >= 2018) %>% 
+  filter(trimestre == 1) %>% 
+  group_by(anio, px08_agrup) %>%
+  mutate(px08_agrup = stringr::str_replace(px08_agrup, "1", "Segunda vivienda del Hogar"),
+         px08_agrup = stringr::str_replace(px08_agrup, "2", "Vivienda de familiares y amigos"),
+         px08_agrup = stringr::str_replace(px08_agrup, "3", "Vivienda alquilada por temporada"),
+         px08_agrup = stringr::str_replace(px08_agrup, "4", "Camping"),
+         px08_agrup = stringr::str_replace(px08_agrup, "5", "Hotel h/ 3*"),
+         px08_agrup = stringr::str_replace(px08_agrup, "6", "Hotel 4 y 5*"),
+         px08_agrup = stringr::str_replace(px08_agrup, "7", "Resto")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px08_agrup = stringr::str_to_sentence(px08_agrup)) %>% 
+  arrange(desc(casos_ponderados)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(alojamientostafe,aes(x="",y=porcentaje, fill=px08_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel2") +
+    theme_void()+
+    labs(title="Tipo de alojamiento de los turistas de Gran Santa Fe",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Alojamiento")+
+   facet_wrap(~anio)
+
+ggplot(alojamientostafe, aes(area= porcentaje, fill = px08_agrup, label = round(porcentaje,1),"%"))+
+  geom_treemap()+
+  scale_fill_brewer(palette = "Pastel2")+
+  geom_treemap_text(colour = "black",
+                    place ="centre",
+                    size = 10)+
+   facet_wrap(~anio)
+```
+
+```{r}
+motivostafe <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>%
+  filter(trimestre ==1) %>% 
+  filter(aglomerado_origen == 5) %>%
+  filter(aglomerado_origen != 32) %>%
+  filter(tipo_visitante == 1) %>% 
+  filter(px10_1 != 99) %>% 
+  group_by(anio, px10_1) %>% 
+  mutate(px10_1 = as_factor(px10_1)) %>%
+  mutate(px10_1 = fct_recode(px10_1,
+                             "Esparcimiento, ocio" = "1",
+                             "Visitas familiares y amigos" = "2",
+                             "Negocios" = "3",
+                             "Estudios" = "4",
+                             "Salud" = "5",
+                             "Religión" = "6",
+                             "Compras" = "7",
+                             "Otros" = "8",
+                             "Ns/ns" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px10_1 = stringr::str_to_sentence(px10_1)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+#ggplot(motivostafe,aes(x="",y=porcentaje, fill=px10_1))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Motivo de viaje de los turistas de Gran Santa Fe",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Motivo")+
+   facet_wrap(~anio)
+
+
+ #ggplot(motivo18_19,aes(x="",y=porcentaje, fill= px10_1))+
+     geom_col(width = 10, color = 1) +
+   geom_text(aes(label = porcentaje),
+             position = position_stack(vjust = 0.5))+
+     coord_polar(theta = "y") +
+     scale_fill_brewer(palette = "Pastel1") +
+   scale_y_continuous(breaks = motivo18_19$porcentaje, labels = motivo18_19$px10_1) +
+     theme(axis.ticks = element_blank(),
+           axis.text = element_text(size = 15),
+           legend.position = "none",
+           panel.background = element_rect(fill = "white"))
+        theme_void()+
+     facet_wrap(~anio)
+        
+        
+ggplot(motivostafe, aes(x=anio, y=porcentaje, fill = px10_1))+
+  geom_bar(stat = "identity", color = "black")+
+  scale_fill_brewer(palette ="Pastel1")+
+  guides(fill=guide_legend(title="Motivo"))+
+  labs(title="Motivo de viaje de los turistas de Gran Santa Fe",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH")
+```
+
+```{r}
+transportestafe <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio >=2018) %>% 
+  filter(trimestre == 1) %>% 
+  filter(aglomerado_origen == 5) %>%
+  filter(px09 != 99) %>% 
+  filter(tipo_visitante == 1) %>% 
+  group_by(anio, px09) %>% 
+  mutate(px09 = as_factor(px09)) %>%
+  mutate(px09 = fct_recode(px09,
+                           "Automovil" = "1",
+                           "Omnibus" = "2",
+                           "Tren" = "3",
+                           "Avión" = "4",
+                           "Embarcación" = "5",
+                           "Taxi o remis" = "6",
+                           "Otro" = "8",
+                           "Ns/ns" = "99")) %>%
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px09 = stringr::str_to_sentence(px09)) %>% 
+  arrange(desc(casos_ponderados)) %>%
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+  ggplot(transportestafe,aes(x="",y=porcentaje, fill=px09))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+    scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Tipo de transporte de los turistas de Gran Santa Fe",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Transporte")+
+     facet_wrap(~anio)
+  
+  
+   ggplot(transportestafe,aes(x="",y=porcentaje, fill= fct_inorder(px09)))+
+     geom_col(width = 10, color = 1) +
+     coord_polar(theta = "y") +
+     scale_fill_brewer(palette = "Pastel1") +
+     geom_label_repel(data = transportestafe,
+                      aes(y=porcentaje, label = paste0(round(porcentaje,1), "%")),
+                      size = 2.5, nudge_x = 1, show.legend = F)+
+     guides(fill = guide_legend(title = "Tipo transporte")) +
+        theme_void()+
+     facet_wrap(~anio)
+```
+
+```{r}
+estadiastafe <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante==1) %>%
+  filter(anio >=2018) %>%
+  filter(trimestre == 1) %>% 
+  filter(aglomerado_origen == 5) %>%
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, px07_agrup) %>% 
+  mutate(px07_agrup = as_factor(px07_agrup)) %>% 
+  mutate(px07_agrup = fct_recode(px07_agrup,
+                                 "1 a 3 noches" = "1",
+                                 "4 o 7 noches" = "2",
+                                 "8 a 14 noches" = "3",
+                                 "15 a 30 noches" = "4",
+                                 "mas de 30 noches" = "5")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px07_agrup = stringr::str_to_sentence(px07_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(estadiastafe,aes(x="",y=porcentaje, fill=px07_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel2")+
+    theme_void()+
+    labs(title="Estadía promedio de los turistas de Gran Santa Fe",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Estadía")+
+   facet_wrap(~anio)
+```
+
+```{r}
+tamaño_grupostafe <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(anio >= 2018) %>% 
+  filter(trimestre==1) %>% 
+  filter(aglomerado_origen == 5) %>%
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, px06_agrup) %>% 
+  mutate(px06_agrup = as_factor(px06_agrup)) %>% 
+  mutate(px06_agrup = fct_recode(px06_agrup,
+                                 "1 o 2 personas" = "1",
+                                 "3 o 4 personas" = "2",
+                                 "5 o más personas" = "3")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px06_agrup = stringr::str_to_sentence(px06_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+ggplot(tamaño_grupostafe,aes(x="",y=porcentaje, fill=px06_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel2")+
+    theme_void()+
+    labs(title="Tamaño de grupo de viaje de los turistas de Gran Santa Fe",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Tamaño")+
+   facet_wrap(~anio)
+```
+
+```{r}
+anticipacionstafe <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(aglomerado_origen == 5) %>%
+  filter(anio >=2018) %>%
+  filter(trimestre==1) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  filter(px13 != 99) %>% 
+  group_by(anio, px13) %>% 
+  mutate(px13 = as_factor(px13)) %>% 
+  mutate(px13 = fct_recode(px13,
+                           "El mismo día" = "1",
+                           "Entre un día y menos de una semana" = "2",
+                           "Entre una semana y un mes" = "3",
+                           "Más de un mes y hasta seis meses" = "4",
+                           "Más de seis meses" = "5",
+                           "Ns/nr" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px13 = stringr::str_to_sentence(px13)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(anticipacionstafe,aes(x="",y=porcentaje, fill=px13))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+    theme_void()+
+    labs(title="Anticipación de viaje de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Anticipación")+
+   facet_wrap(~anio)
+```
+
+ANALISIS TUCUMAN
+
+```{r}
+visitantestuc <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>%
+  filter(trimestre == 1) %>% 
+  filter(aglomerado_origen == 29) %>% 
+  filter(aglomerado_origen != 32) %>%
+  group_by(anio, tipo_visitante) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(tipo_visitante = stringr::str_replace(tipo_visitante, "1", "Turista"),
+         tipo_visitante = stringr::str_replace(tipo_visitante, "2", "Excursionista"))
+
+
+tabla_visitantestuc <- visitantestuc %>% 
+  mutate(anio = as.character(anio),
+         tipo_visitante = stringr::str_to_sentence(tipo_visitante)) %>%
+  kable(col.names = c("Año", "Tipo de visitante", "Total"),
+        format.args = list(decimal.mark = ",", big.mark = ".", digits = 1, scientific = FALSE))
+
+
+tabla_visitantestuc %>% 
+  collapse_rows(columns = 1, valign = "top")  %>% 
+  kable_styling() 
+```
+
+```{r}
+motivotuc <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>%
+  filter(trimestre ==1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(aglomerado_origen == 29) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(px10_1 != 99) %>% 
+  group_by(anio, px10_1) %>% 
+  mutate(px10_1 = as_factor(px10_1)) %>%
+  mutate(px10_1 = fct_recode(px10_1,
+                             "Esparcimiento, ocio" = "1",
+                             "Visitas familiares y amigos" = "2",
+                             "Negocios" = "3",
+                             "Estudios" = "4",
+                             "Salud" = "5",
+                             "Religión" = "6",
+                             "Compras" = "7",
+                             "Otros" = "8",
+                             "Ns/ns" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px10_1 = stringr::str_to_sentence(px10_1)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(motivotuc,aes(x="",y=porcentaje, fill=px10_1))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Motivo de viaje de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Motivo")+
+   facet_wrap(~anio)
+
+
+ ggplot(motivotuc,aes(x=anio,y=porcentaje, fill= px10_1))+
+     geom_col(width = 10, color = 1) +
+   geom_text(aes(label = paste0(round(porcentaje,1), "%")),
+             position = position_stack(vjust = 0.5))+
+     coord_polar(theta = "y") +
+     scale_fill_brewer(palette = "Pastel1") +
+   scale_y_continuous(breaks = motivotuc$porcentaje, labels = motivotuc$px10_1) +
+     theme(axis.ticks = element_blank(),
+           axis.text = element_text(size = 15),
+           legend.position = "none",
+           panel.background = element_rect(fill = "white"))+
+        theme_void()+
+     facet_wrap(~anio)
+        
+        
+ggplot(motivotuc, aes(x=anio, y=porcentaje, fill = px10_1))+
+  geom_bar(stat = "identity", color = "black")+
+  scale_fill_brewer(palette ="Pastel1")+
+  guides(fill=guide_legend(title="Motivo"))+
+  labs(title = "Motivo de viaje de los turistas de PBA",
+       subtitle = "Primeros trimestres",
+       caption = "Fuente: EVYTH")
+
+ggplot(motivotuc, aes(area= porcentaje, fill = px10_1, label = round(porcentaje,1),"%"))+
+  geom_treemap()+
+  scale_fill_brewer(palette = "Pastel2")+
+  geom_treemap_text(colour = "black",
+                    place ="centre",
+                    size = 10)+
+   facet_wrap(~anio)+
+  labs(title="Motivo de viaje de los turistas de Gran Tucumán",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Motivo")
+```
+
+```{r}
+transportetuc <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio >=2018) %>% 
+  filter(trimestre == 1) %>% 
+  filter(aglomerado_origen == 29) %>% 
+  filter(px09 != 99) %>% 
+  filter(tipo_visitante == 1) %>% 
+  group_by(anio, px09) %>% 
+  mutate(px09 = as_factor(px09)) %>%
+  mutate(px09 = fct_recode(px09,
+                           "Automovil" = "1",
+                           "Omnibus" = "2",
+                           "Tren" = "3",
+                           "Avión" = "4",
+                           "Embarcación" = "5",
+                           "Taxi o remis" = "6",
+                           "Otro" = "8",
+                           "Ns/ns" = "99")) %>%
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px09 = stringr::str_to_sentence(px09)) %>% 
+  arrange(desc(casos_ponderados)) %>%
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+  ggplot(transportetuc,aes(x="",y=porcentaje, fill=px09))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+    scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Tipo de transporte de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Transporte")+
+     facet_wrap(~anio)
+  
+  
+   ggplot(transportetuc,aes(x="",y=porcentaje, fill= fct_inorder(px09)))+
+     geom_col(width = 10, color = 1) +
+     coord_polar(theta = "y") +
+     scale_fill_brewer(palette = "Pastel1") +
+     geom_label_repel(data = transportetuc,
+                      aes(y=porcentaje, label = paste0(round(porcentaje,1), "%")),
+                      size = 2.5, nudge_x = 1, show.legend = F)+
+     guides(fill = guide_legend(title = "Tipo transporte")) +
+        theme_void()+
+     facet_wrap(~anio)
+```
+
+```{r}
+alojamientotuc<- evyth %>%
+  filter(region_destino == 1) %>%
+  filter(aglomerado_origen != 32) %>%
+  filter(tipo_visitante == 1) %>%
+  filter(anio >= 2018) %>% 
+  filter(aglomerado_origen == 29) %>% 
+  filter(trimestre == 1) %>% 
+  group_by(anio, px08_agrup) %>%
+  mutate(px08_agrup = stringr::str_replace(px08_agrup, "1", "Segunda vivienda del Hogar"),
+         px08_agrup = stringr::str_replace(px08_agrup, "2", "Vivienda de familiares y amigos"),
+         px08_agrup = stringr::str_replace(px08_agrup, "3", "Vivienda alquilada por temporada"),
+         px08_agrup = stringr::str_replace(px08_agrup, "4", "Camping"),
+         px08_agrup = stringr::str_replace(px08_agrup, "5", "Hotel h/ 3*"),
+         px08_agrup = stringr::str_replace(px08_agrup, "6", "Hotel 4 y 5*"),
+         px08_agrup = stringr::str_replace(px08_agrup, "7", "Resto")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px08_agrup = stringr::str_to_sentence(px08_agrup)) %>% 
+  arrange(desc(casos_ponderados)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(alojamientotuc,aes(x="",y=porcentaje, fill=px08_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel2") +
+    theme_void()+
+    labs(title="Tipo de alojamiento de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Alojamiento")+
+   facet_wrap(~anio)
+
+ggplot(alojamientotuc, aes(area= porcentaje, fill = px08_agrup, label = round(porcentaje,1),"%"))+
+  geom_treemap()+
+  scale_fill_brewer(palette = "Pastel2")+
+  geom_treemap_text(colour = "black",
+                    place ="centre",
+                    size = 10)+
+  labs(title="Tipo de alojamiento de los turistas de Tucumán",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Alojamiento")+
+   facet_wrap(~anio)
+```
+
+```{r}
+tamaño_grupotuc <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(anio >= 2018) %>% 
+  filter(trimestre==1) %>%
+   filter(aglomerado_origen == 29) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, px06_agrup) %>% 
+  mutate(px06_agrup = as_factor(px06_agrup)) %>% 
+  mutate(px06_agrup = fct_recode(px06_agrup,
+                                 "1 o 2 personas" = "1",
+                                 "3 o 4 personas" = "2",
+                                 "5 o más personas" = "3")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px06_agrup = stringr::str_to_sentence(px06_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+ggplot(tamaño_grupotuc,aes(x="",y=porcentaje, fill=px06_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel2")+
+    theme_void()+
+    labs(title="Tamaño de grupo de viaje de los turistas de Tucumán",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Tamaño")+
+   facet_wrap(~anio)
+```
+
+```{r}
+estadiatuc <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante==1) %>%
+  filter(anio >=2018) %>%
+  filter(trimestre == 1) %>% 
+  filter(aglomerado_origen == 29) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  group_by(anio, px07_agrup) %>% 
+  mutate(px07_agrup = as_factor(px07_agrup)) %>% 
+  mutate(px07_agrup = fct_recode(px07_agrup,
+                                 "1 a 3 noches" = "1",
+                                 "4 o 7 noches" = "2",
+                                 "8 a 14 noches" = "3",
+                                 "15 a 30 noches" = "4",
+                                 "mas de 30 noches" = "5")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px07_agrup = stringr::str_to_sentence(px07_agrup)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(estadiatuc,aes(x="",y=porcentaje, fill=px07_agrup))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel1")+
+    theme_void()+
+    labs(title="Estadía promedio de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Estadía")+
+   facet_wrap(~anio)
+
+ggplot(estadiatuc, aes(x=anio, y=porcentaje, fill = px07_agrup))+
+  geom_bar(stat = "identity", color = "black")+
+  scale_fill_brewer(palette ="Pastel1")+
+  guides(fill=guide_legend(title="Motivo"))+
+  labs(title="Estadia de los turistas de Gran Tucuman",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH")
+
+```
+
+```{r}
+anticipaciontuc <- evyth %>% 
+  filter(region_destino == 1) %>% 
+  filter(tipo_visitante == 1) %>% 
+  filter(anio >=2018) %>%
+  filter(trimestre==1) %>% 
+  filter(aglomerado_origen == 29) %>% 
+  filter(aglomerado_origen != 32) %>% 
+  filter(px13 != 99) %>% 
+  group_by(anio, px13) %>% 
+  mutate(px13 = as_factor(px13)) %>% 
+  mutate(px13 = fct_recode(px13,
+                           "El mismo día" = "1",
+                           "Entre un día y menos de una semana" = "2",
+                           "Entre una semana y un mes" = "3",
+                           "Más de un mes y hasta seis meses" = "4",
+                           "Más de seis meses" = "5",
+                           "Ns/nr" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px13 = stringr::str_to_sentence(px13)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(anticipaciontuc,aes(x="",y=porcentaje, fill=px13))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=3)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette="Pastel1")+
+    theme_void()+
+    labs(title="Anticipación de viaje de los turistas de Gran Tucumán",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Anticipación")+
+   facet_wrap(~anio)
+```
+
+ANALISIS SAN JUAN
+
+```{r}
+visitantessanj <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>%
+  filter(aglomerado_origen == 27) %>%
+  filter(aglomerado_origen != 32) %>%
+  group_by(anio, tipo_visitante) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(tipo_visitante = stringr::str_replace(tipo_visitante, "1", "Turista"),
+         tipo_visitante = stringr::str_replace(tipo_visitante, "2", "Excursionista"))
+
+
+tabla_visitantessanj <- visitantessanj %>% 
+  mutate(anio = as.character(anio),
+         tipo_visitante = stringr::str_to_sentence(tipo_visitante)) %>%
+  kable(col.names = c("Año", "Tipo de visitante", "Total"),
+        format.args = list(decimal.mark = ",", big.mark = ".", digits = 1, scientific = FALSE))
+
+
+tabla_visitantessanj %>% 
+  collapse_rows(columns = 1, valign = "top")  %>% 
+  kable_styling() 
+```
+
+```{r}
+motivosanj <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(anio >= 2018) %>%
+  filter(trimestre ==1) %>% 
+  filter(aglomerado_origen == 27) %>%
+  filter(aglomerado_origen != 32) %>%
+  filter(tipo_visitante == 1) %>% 
+  filter(px10_1 != 99) %>% 
+  group_by(anio, px10_1) %>% 
+  mutate(px10_1 = as_factor(px10_1)) %>%
+  mutate(px10_1 = fct_recode(px10_1,
+                             "Esparcimiento, ocio" = "1",
+                             "Visitas familiares y amigos" = "2",
+                             "Negocios" = "3",
+                             "Estudios" = "4",
+                             "Salud" = "5",
+                             "Religión" = "6",
+                             "Compras" = "7",
+                             "Otros" = "8",
+                             "Ns/ns" = "99")) %>% 
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px10_1 = stringr::str_to_sentence(px10_1)) %>% 
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+ggplot(motivosanj,aes(x="",y=porcentaje, fill=px10_1))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+  scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Motivo de viaje de los turistas",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Motivo")+
+   facet_wrap(~anio)
+
+
+ ggplot(motivosanj,aes(x="",y=porcentaje, fill= px10_1))+
+     geom_col(width = 10, color = 1) +
+   geom_text(aes(label = porcentaje),
+             position = position_stack(vjust = 0.5))+
+     coord_polar(theta = "y") +
+     scale_fill_brewer(palette = "Pastel1") +
+   scale_y_continuous(breaks = motivosanj$porcentaje, labels = motivosanj$px10_1) +
+     theme(axis.ticks = element_blank(),
+           axis.text = element_text(size = 15),
+           legend.position = "none",
+           panel.background = element_rect(fill = "white"))+
+        theme_void()+
+     facet_wrap(~anio)
+        
+        
+ggplot(motivosanj, aes(x=anio, y=porcentaje, fill = px10_1))+
+  geom_bar(stat = "identity", color = "black")+
+  scale_fill_brewer(palette ="Pastel1")+
+  guides(fill=guide_legend(title="Motivo"))+
+  labs(title="Motivo de viaje de los turistas de Gran San Juan",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH")
+```
+
+```{r}
+transportesanj <- evyth %>%
+  filter(region_destino == 1) %>% 
+  filter(aglomerado_origen != 32) %>%
+  filter(anio >=2018) %>% 
+  filter(aglomerado_origen == 27) %>%
+  filter(trimestre == 1) %>% 
+  filter(px09 != 99) %>% 
+  filter(tipo_visitante == 1) %>% 
+  group_by(anio, px09) %>% 
+  mutate(px09 = as_factor(px09)) %>%
+  mutate(px09 = fct_recode(px09,
+                           "Automovil" = "1",
+                           "Omnibus" = "2",
+                           "Tren" = "3",
+                           "Avión" = "4",
+                           "Embarcación" = "5",
+                           "Taxi o remis" = "6",
+                           "Otro" = "8",
+                           "Ns/ns" = "99")) %>%
+  summarise(casos_ponderados = sum(pondera)) %>% 
+  mutate(anio = as.character(anio),
+         px09 = stringr::str_to_sentence(px09)) %>% 
+  arrange(desc(casos_ponderados)) %>%
+  mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
+
+
+  ggplot(transportesanj,aes(x="",y=porcentaje, fill=px09))+
+  geom_bar(stat = "identity",
+           color="white")+
+    geom_text(aes(label=paste0(round(porcentaje,1), "%")),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta = "y")+
+    scale_fill_brewer(palette = "Pastel1") +
+    theme_void()+
+    labs(title="Tipo de transporte de los turistas de Gran San Juan",
+         subtitle = "Primeros trimestres",
+         caption = "Fuente: EVYTH",
+         fill = "Transporte")+
+     facet_wrap(~anio)
+```
+
+```{r}
+
+```
