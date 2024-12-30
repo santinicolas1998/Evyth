@@ -1,7 +1,7 @@
 ---
 title: "EVYTH"
-author: "DGIMO"
-date: "25/08/2022"
+author: "Santiago"
+date: "2/12/2024"
 output: html_document
 ---
 
@@ -182,7 +182,7 @@ ggplot(aglomerados23_24) +
   facet_wrap(~anio)
 ```
 
-#turistas a caba 1trim 23
+#turistas a caba 1trim 24
 
 ```{r}
 aglomerados24 <- evyth %>% 
@@ -1235,7 +1235,7 @@ motivostafe <- evyth %>%
   mutate(porcentaje = (casos_ponderados / sum(casos_ponderados))*100)
 
 
-#ggplot(motivostafe,aes(x="",y=porcentaje, fill=px10_1))+
+ggplot(motivostafe,aes(x="",y=porcentaje, fill=px10_1))+
   geom_bar(stat = "identity",
            color="white")+
     geom_text(aes(label=paste0(round(porcentaje,1), "%")),
@@ -1250,17 +1250,17 @@ motivostafe <- evyth %>%
    facet_wrap(~anio)
 
 
- #ggplot(motivo18_19,aes(x="",y=porcentaje, fill= px10_1))+
+ ggplot(motivostafe,aes(x="",y=porcentaje, fill= px10_1))+
      geom_col(width = 10, color = 1) +
    geom_text(aes(label = porcentaje),
              position = position_stack(vjust = 0.5))+
      coord_polar(theta = "y") +
      scale_fill_brewer(palette = "Pastel1") +
-   scale_y_continuous(breaks = motivo18_19$porcentaje, labels = motivo18_19$px10_1) +
+   scale_y_continuous(breaks = motivostafe$porcentaje, labels = motivostafe$px10_1) +
      theme(axis.ticks = element_blank(),
            axis.text = element_text(size = 15),
            legend.position = "none",
-           panel.background = element_rect(fill = "white"))
+           panel.background = element_rect(fill = "white"))+
         theme_void()+
      facet_wrap(~anio)
         
