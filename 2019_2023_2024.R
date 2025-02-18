@@ -20,7 +20,7 @@ download.file(url = evyth_url, destfile = evyth)
 
 evyth_2019_24 <- read.csv("evyth 2019-24.csv")
 
-### TIPO DE TRANSPORTE A CABA
+### TIPO DE VISITANTE A CABA
 anios <- c(2019, 2023, 2024)
 
 # Loop para crear un CSV por cada año
@@ -90,14 +90,14 @@ for (anio in anios) {
     group_by(px09) %>% 
     mutate(px09 = as_factor(px09)) %>%
     mutate(px09 = fct_recode(px09,
-                                   "Automovil" = "1",
-                                   "Omnibus" = "2",
-                                   "Tren" = "3",
-                                   "Avión" = "4",
-                                   "Embarcación" = "5",
-                                   "Taxi o remis" = "6",
-                                   "Otro" = "8",
-                                   "Ns/ns" = "99")) %>% 
+                             "Automovil" = "1",
+                             "Omnibus" = "2",
+                             "Tren" = "3",
+                             "Avión" = "4",
+                             "Embarcación" = "5",
+                             "Taxi o remis" = "6",
+                             "Otro" = "8",
+                             "Ns/ns" = "99")) %>% 
     summarise(casos_ponderados = sum(pondera, na.rm = TRUE)) %>% 
     mutate(porcentaje = (casos_ponderados / sum(casos_ponderados, na.rm = TRUE)) * 100)
   
@@ -165,9 +165,9 @@ for (anio in anios) {
     group_by(px06_agrup) %>% 
     mutate(px06_agrup = as_factor(px06_agrup)) %>%
     mutate(px06_agrup = fct_recode(px06_agrup,
-                               "1 o 2 personas" = "1",
-                               "3 o 4 personas" = "2",
-                               "5 o más personas" = "3")) %>% 
+                                   "1 o 2 personas" = "1",
+                                   "3 o 4 personas" = "2",
+                                   "5 o más personas" = "3")) %>% 
     summarise(casos_ponderados = sum(pondera, na.rm = TRUE)) %>% 
     mutate(porcentaje = (casos_ponderados / sum(casos_ponderados, na.rm = TRUE)) * 100)
   
@@ -202,15 +202,15 @@ for (anio in anios) {
     group_by(px10_1) %>% 
     mutate(px10_1 = as_factor(px10_1)) %>%
     mutate(px10_1 = fct_recode(px10_1,
-                                   "Esparcimiento, ocio" = "1",
-                                   "Visitas familiares y amigos" = "2",
-                                   "Negocios" = "3",
-                                   "Estudios" = "4",
-                                   "Salud" = "5",
-                                   "Religión" = "6",
-                                   "Compras" = "7",
-                                   "Otros" = "8",
-                                   "Ns/ns" = "99")) %>% 
+                               "Esparcimiento, ocio" = "1",
+                               "Visitas familiares y amigos" = "2",
+                               "Negocios" = "3",
+                               "Estudios" = "4",
+                               "Salud" = "5",
+                               "Religión" = "6",
+                               "Compras" = "7",
+                               "Otros" = "8",
+                               "Ns/ns" = "99")) %>% 
     summarise(casos_ponderados = sum(pondera, na.rm = TRUE)) %>% 
     mutate(porcentaje = (casos_ponderados / sum(casos_ponderados, na.rm = TRUE)) * 100)
   
@@ -238,7 +238,7 @@ for (anio in anios) {
   
   # Crear una lista para almacenar los resultados
   resultados <- list()
-
+  
   resultados[["Actividad_0"]] <- evyth_2019_24 %>% 
     filter(region_destino == 1) %>% 
     filter(aglomerado_origen != 32) %>%
@@ -293,6 +293,7 @@ for (anio in anios) {
 
 unique(evyth_2019_24$px07_agrup)
 
+# TIPO DE ESTADIA
 
 anios <- c(2019, 2023, 2024)
 
@@ -326,9 +327,6 @@ for (anio in anios) {
   # Verificación de archivo guardado
   print(paste("Archivo guardado como:", file_name))
 }
-
-write.csv(estadia, "estadia 2024.csv")
-
 
 
 
@@ -387,16 +385,6 @@ for (anio in anios) {
   saveWorkbook(wb, file_name, overwrite = TRUE)
   print(paste("Archivo guardado como:", file_name))
 }
-
-
-
-# De todos los turistas nacionales, cuáles vienen por motivos religiosos (hacer perfil)
-
-
-
-
-# De todos los turistas nacionales, cuáles vienen por motivos religiosos (hacer perfil)
-# correr todo para 2019,2023 y 2024
 
 
 
